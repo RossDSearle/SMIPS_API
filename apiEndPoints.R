@@ -8,7 +8,7 @@ library(htmlTable)
 machineName <- as.character(Sys.info()['nodename'])
 if(machineName=='soils-discovery'){
 
-  deployDir <-'/srv/plumber/TERNLandscapes/SoilDataFederatoR'
+  deployDir <-'/srv/plumber/SMIPS_API'
   #server <- 'http://esoil.io'
 }else{
   deployDir <-'C:/Users/sea084/Dropbox/RossRCode/Git/SMIPS_API'
