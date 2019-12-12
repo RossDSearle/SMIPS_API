@@ -9,7 +9,7 @@ if(machineName=='soils-discovery'){
   server <- 'http://esoil.io'
   options("plumber.host" = "0.0.0.0")
   options("plumber.apiHost" = "0.0.0.0")
-  portNum <- 8094
+  portNum <- 8082
   #portNum <- 8073
 }else{
   deployDir <-'C:/Users/sea084/Dropbox/RossRCode/Git/SMIPS_API'
