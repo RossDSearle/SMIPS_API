@@ -102,14 +102,19 @@ getSMIPSTimeSeries <- function(product, startDate, endDate, longitude, latitude)
 }
 
 
-getSMIPSrasterCSIRO_OpenDAP <- function(product=NULL, dt, minx=Ausminx, miny=Ausminy, maxx=Ausmaxx, maxy=Ausmaxy, resFactor=1){
+getSMIPSrasterCSIRO_OpenDAP <- function(product=NULL, dt, bboxExt=NULL, resFactor=1){
   
   if(is.null(product)){
     product = defaultProduct
   }
-  #wmsnumrows <- 348
-  #wmsnumcols <- 412
   
+  if (is.null(bboxExt)){
+    minx=Ausminx; miny=Ausminy; maxx=Ausmaxx; maxy=Ausmaxy
+  }else{
+    minx=bboxExt@xmin; miny= bboxExt@ymin; maxx=bboxExt@xmax; maxy=bboxExt@ymax
+    #bboxExt@xmin & outDF$Longitude <= bboxExt@xmax & outDF$Latitude >= bboxExt@ymin & outDF$Latitude <= bboxExt@ymax)
+  }
+ 
   xext = maxx - minx
   yext = maxy - miny
   
