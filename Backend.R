@@ -1,12 +1,14 @@
 library(raster)
 library(httr)
 library(jsonlite)
+library(stringr)
 
 # Thredds Cataloue
 #http://esoil.io/thredds/catalog/SMIPSall/catalog.html?dataset=SMIPS/SMIPSv0.5.nc
 
 
 RepoPath <- 'http://esoil.io/thredds/dodsC/SMIPS/SMIPSv0.5.nc'
+defaultProduct <- 'Analysis_Wetness_Index'
 
 supportedProducts <- c('Openloop_Wetness_Index', 'Analysis_Wetness_Index')
 
@@ -31,41 +33,115 @@ Ausnumcols <- 4110
 # 
 # ts <- getTimeSeriesCSIRO(product, startDate, endDate, longitude, latitude)
 
+
+getcellsForALatLon <- function(lon, lat){
+  templateR <- raster(nrows=Ausnumrows, ncols=Ausnumcols, xmn=Ausminx, xmx=Ausmaxx, ymn=Ausminy, ymx=Ausmaxy, crs=CRS('+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0'))
+  cell <- cellFromXY(templateR, cbind(c(lon), c(lat)))
+  colNum <- colFromCell(templateR, cell)
+  rowNum <- rowFromCell(templateR, cell)
+  return(data.frame(colNum=colNum, rowNum=rowNum))
+}
+
 getSMIPSTimeSeries <- function(product, startDate, endDate, longitude, latitude){
   
   check_getSMIPSTimeSeries(product=product, startDate=startDate, endDate=endDate, longitude=longitude, latitude=latitude)
   
   if(is.null(product)){
-    product = 'Analysis_Wetness_Index'
+    product = defaultProduct
   }
   
-  r <- raster(nrows=Ausnumrows, ncols=Ausnumcols, xmn=minx, xmx=maxx, ymn=miny, ymx=maxy, crs=CRS('+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0'))
+  endDate <- getEndDate(endDate)
+  startDate <- getStartDate(startDate, endDate)
+  
+  r <- raster(nrows=Ausnumrows, ncols=Ausnumcols, xmn=Ausminx, xmx=Ausmaxx, ymn=Ausminy, ymx=Ausmaxy, crs=CRS('+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0'))
   cell <- cellFromXY(r, cbind(c(longitude), c(latitude)))
+  
   colNum <- colFromCell(r, cell)
   rowNum <- rowFromCell(r, cell)
   print(colNum)
   
-  startDayNum = as.numeric(as.Date(paste(startDate), "%d-%m-%Y") - as.Date(paste(originDate), "%d-%m-%Y"))
-  endDayNum = as.numeric(as.Date(paste(endDate), "%d-%m-%Y") - as.Date(paste(originDate), "%d-%m-%Y"))
-  
-  url <- paste0('http://esoil.io/thredds/dodsC/SMIPS/SMIPSv0.5.nc.ascii?',product,'%5B',startDayNum, ':', endDayNum ,'%5D%5B', rowNum,'%5D%5B', colNum, '%5D')
+  # get the max day in the Thredd catalogue
+  url <- paste0('http://esoil.io/thredds/dodsC/SMIPSall/SMIPSv0.5.nc.dds?time')
   req <- GET(url)
   stop_for_status(req)
-  d1 <-  content(req, 'text')
+  t1 <- content(req, 'text')
+  k <- regmatches(t1, gregexpr("\\[.+?\\]", t1))[[1]]
+  k <- substring(k, 2, nchar(k)-1)
+  maxDay <- as.numeric(str_trim(str_split(k, '=')[[1]][2]))
+  
+  startDayNum = as.numeric(as.Date(paste(startDate), "%d-%m-%Y") - as.Date(paste(originDate), "%d-%m-%Y"))
+ 
+  endDayNum = as.numeric(as.Date(paste(endDate), "%d-%m-%Y") - as.Date(paste(originDate), "%d-%m-%Y"))
+  
+  if(startDayNum < 0){
+    startDayNum=0
+    startDate=originDate
+  }
+  
+  
+  #adjust if requested end date is past the last date in the datacube
+  daylag = 0
+  if (endDayNum > maxDay){
+    daylag <- endDayNum-(maxDay-1)
+    endDayNum = endDayNum-daylag
+  }
+  
+  url <- paste0('http://esoil.io/thredds/dodsC/SMIPS/SMIPSv0.5.nc.ascii?',product,'%5B',startDayNum, ':', endDayNum ,'%5D%5B', rowNum-1,'%5D%5B', colNum-1, '%5D')
+  #url <- paste0('http://esoil.io/thredds/dodsC/SMIPS/SMIPSv0.5.nc.ascii?',product,'%5B',startDayNum,'%5D%5B', rowNum,'%5D%5B', colNum, '%5D')
+  req <- GET(url)
+  stop_for_status(req)
+  d1 <-  content(req, 'text', encoding = 'UTF-8')
   
   ndays <- (endDayNum-startDayNum) + 1
-  dts <- seq.Date(from=as.Date(paste(startDate), "%d-%m-%Y"), to=as.Date(paste(endDate), "%d-%m-%Y"), by='days')
+  dts <- seq.Date(from=as.Date(paste(startDate), "%d-%m-%Y"), to=as.Date(paste(endDate), "%d-%m-%Y")-daylag, by='days')
   pdts <- paste0(dts, 'T00:00:00')
-  
   ts1 <- read.table(text=d1, skip=12, nrows = ndays , sep = ',')
   ts2 <- ts1[,-1]
-  
   tsdf <- data.frame(t=pdts, v=ts2, stringsAsFactors = F)
-  #colnames(tsdf) <- c('t', 'v')
   return(tsdf)
 }
 
 
+getSMIPSrasterCSIRO_OpenDAP <- function(product=NULL, dt, minx=Ausminx, miny=Ausminy, maxx=Ausmaxx, maxy=Ausmaxy, resFactor=1){
+  
+  if(is.null(product)){
+    product = defaultProduct
+  }
+  #wmsnumrows <- 348
+  #wmsnumcols <- 412
+  
+  xext = maxx - minx
+  yext = maxy - miny
+  
+  #stridex <- ceiling(xext / ( AusRes * wmsnumcols))
+  #stridey <- ceiling(yext / ( AusRes * wmsnumrows))
+  stridey <- resFactor
+  
+  ll <- getcellsForALatLon(minx, miny)
+  ur <- getcellsForALatLon(maxx, maxy)
+  
+  subcols <- ceiling( c((ur$colNum-1) - ll$colNum) / stridey )
+  subrows <- ceiling( c((ll$rowNum-1) - ur$rowNum) / stridey )
+  
+  dayNum = as.numeric(as.Date(paste(dt), "%d-%m-%Y") - as.Date(paste(originDate), "%d-%m-%Y"))
+  print(dayNum)
+  url <- paste0('http://esoil.io/thredds/dodsC/SMIPSall/SMIPSv0.5.nc.ascii?',product, '%5B',dayNum ,'%5D%5B', ur$rowNum-1, ':', stridey, ':', ll$rowNum-1, '%5D%5B', ll$colNum-1, ':', stridey, ':', ur$colNum-1, '%5D')
+ # url <- paste0('http://esoil.io/thredds/dodsC/SMIPSall/SMIPSv0.5.nc.ascii?',product, '%5B',dayNum ,'%5D%5B', ur$rowNum-1, ':',  ll$rowNum-1, '%5D%5B', ll$colNum-1, ':', ur$colNum-1, '%5D')
+  
+   print(url)
+  
+  req <- GET(url)
+  stop_for_status(req)
+  d1 <- content(req, 'text', encoding = 'UTF-8')
+  
+  odData1 <- read.table(text=d1, skip=12, nrows = subrows , sep = ',')
+  odData2 <- odData1[,-1]
+  m1 <- as.matrix(odData2)
+  
+  r <- raster(nrows=nrow(odData2), ncols=ncol(odData2), xmn=minx, xmx=maxx, ymn=miny, ymx=maxy, crs=sp::CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"),  vals=m1)
+
+  return(r)
+}
 
 
 
@@ -106,4 +182,48 @@ check_getSMIPSTimeSeries <- function(product=NULL, startDate=NULL, endDate=NULL,
 }
 
 
+getEndDate <- function(endDate){
+  
+  dnowYMD <- format(Sys.time(),format="%d-%m-%Y" )
+  
+  if(is.null(endDate))
+  {
+    isoEDate <- paste0(dnowYMD)
+  }else{
+    
+    # check to see supplied edate is not greater than today - if so fix it
+    bits <- str_split(endDate, 'T')
+    dnowYMD <- format(Sys.time(), "%Y-%m-%d")
+    dnowPos <- as.POSIXct(dnowYMD)
+    endDatePos <- as.POSIXct(endDate, format="%d-%m-%Y")
+    dtdiff <- endDatePos-dnowPos
+    ndiff <- as.numeric(dtdiff, units = "days")
+    
+    if(ndiff > 0){
+      isoEDate <- paste0( format(Sys.time(), "%d-%m-%Y"))
+    }else{
+      isoEDate <- endDate
+    }
+  }
+  return(isoEDate)
+}
+
+getStartDate <- function(startDate, endDate){
+  
+  if(is.null(startDate))
+  {
+    if(is.null(endDate))
+    {
+      ed <- format(Sys.time(), "%d-%m-%Y")
+    }else{
+      ed <- endDate
+    }
+    edp <- strptime(ed, "%d-%m-%Y")
+    py <- edp - 31536000
+    isoSDate <- format(py, "%d-%m-%Y")
+  }else{
+    isoSDate <- startDate
+  }
+  
+}
 

@@ -70,11 +70,12 @@ writeLogEntry <- function(logfile, logentry){
 
 #* Returns a TimeSeries
 
-#* @param format (Optional) format of the response to return. Either json, csv, or xml. Default = json
-#* @param edate (Optional) EndDate
-#* @param sdate (Optional) Startdate
-#* @param latitude (Required) Latitude of the location to drill
-#* @param longitude (Required) Longitude of the location to drill
+#* @param format (Optional) format of the response to return. Either json, csv, or xml. Default = json.
+#* @param edate (Optional) Last date to return in the form dd-mm-YYYY. If not supplied defaults to today.
+#* @param sdate (Optional) First date to return in the form dd-mm-YYYY. If not supplied defaults to 1 year before edate.
+#* @param latitude (Required) Latitude of the location to drill.
+#* @param longitude (Required) Longitude of the location to drill.
+#* @param product (Optional) SMIPS product to query. Current choices are 'Analysis_Wetness_Index' and 'Openloop_Wetness_Index'. Default='Analysis_Wetness_Index'
 
 
 #* @tag SMIPS
@@ -82,12 +83,16 @@ writeLogEntry <- function(logfile, logentry){
 apiGetSMIPSTimeseries<- function( res, sdate=NULL, edate=NULL, longitude=NULL, latitude=NULL, product=NULL, format='json'){
 
   tryCatch({
-
-    product = 'Analysis_Wetness_Index'
+    
+    if(is.null(product)){
+        product = 'Analysis_Wetness_Index'
+    }
 
     DF <- getSMIPSTimeSeries(product, sdate, edate, as.numeric(longitude), as.numeric(latitude))
     label <- 'SMIPS_TS'
-    print(DF)
+
+    sd <- DF$t[1]
+    ed <- DF$t[nrow(DF)]
 
     odf <- data.frame("SiteID"= paste0(product, "_", as.numeric(longitude), "_" , as.numeric(latitude)),
 
@@ -100,8 +105,8 @@ apiGetSMIPSTimeseries<- function( res, sdate=NULL, edate=NULL, longitude=NULL, l
     "SensorName"= product,
     "UpperDepthCm"= 0,
     "LowerDepthCm"= 90,
-    "RequestStartDate"= sdate,
-    "RequestEndDate"=edate,
+    "RequestStartDate"= sd,
+    "RequestEndDate"=ed,
     "AggregationPeriod"= "none",
     "DataType"= "Soil-Moisture",
     "Units"= "Percent",
@@ -132,8 +137,6 @@ apiGetSMIPSTimeseries<- function( res, sdate=NULL, edate=NULL, longitude=NULL, l
 
 
 cerealize <- function(DF, label, format, res){
-
-
 
   if(format == 'xml'){
 
