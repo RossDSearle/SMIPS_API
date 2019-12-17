@@ -7,7 +7,7 @@ library(stringr)
 #http://esoil.io/thredds/catalog/SMIPSall/catalog.html?dataset=SMIPS/SMIPSv0.5.nc
 
 
-RepoPath <- 'http://esoil.io/thredds/dodsC/SMIPS/SMIPSv0.5.nc'
+RepoPath <- 'http://esoil.io/thredds/dodsC/SMIPSall/SMIPSv0.5.nc'
 defaultProduct <- 'Analysis_Wetness_Index'
 
 supportedProducts <- c('Openloop_Wetness_Index', 'Analysis_Wetness_Index')
@@ -42,6 +42,45 @@ getcellsForALatLon <- function(lon, lat){
   return(data.frame(colNum=colNum, rowNum=rowNum))
 }
 
+
+getThreddsDay <- function(theDate){
+  d <- as.numeric(as.Date(paste(theDate), "%d-%m-%Y") - as.Date(paste(originDate), "%d-%m-%Y"))
+  print(d)
+  return(d)
+}
+
+getSMIPSAustTemplate <- function(){
+  r <- raster(nrows=Ausnumrows, ncols=Ausnumcols, xmn=Ausminx, xmx=Ausmaxx, ymn=Ausminy, ymx=Ausmaxy, crs=CRS('+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0'))
+  return(r)
+}
+
+getGDALrowcolFromSMIPSTemplate <- function(longitude, latitude){
+  r <- getSMIPSAustTemplate()
+  cell <- cellFromXY(r, cbind(c(longitude), c(latitude)))
+  rc <- list()
+  rc$colNum <- colFromCell(r, cell)
+  rc$rowNum <- rowFromCell(r, cell)
+  return(rc)
+}
+
+getThreddsMaxDay <- function(){
+  # get the max day in the Thredd catalogue
+  url <- paste0(threddsPath, '.dds?time')
+  t1 <- retrieveData(url)
+  k <- regmatches(t1, gregexpr("\\[.+?\\]", t1))[[1]]
+  k <- substring(k, 2, nchar(k)-1)
+  maxDay <- as.numeric(str_trim(str_split(k, '=')[[1]][2]))
+  return(maxDay)
+}
+
+retrieveData <- function(url){
+  
+  req <- GET(url)
+  stop_for_status(req)
+  t1 <- content(req, 'text', encoding = 'UTF-8')
+  return(t1)
+}
+
 getSMIPSTimeSeries <- function(product, startDate, endDate, longitude, latitude){
   
   check_getSMIPSTimeSeries(product=product, startDate=startDate, endDate=endDate, longitude=longitude, latitude=latitude)
@@ -53,32 +92,21 @@ getSMIPSTimeSeries <- function(product, startDate, endDate, longitude, latitude)
   endDate <- getEndDate(endDate)
   startDate <- getStartDate(startDate, endDate)
   
-  r <- raster(nrows=Ausnumrows, ncols=Ausnumcols, xmn=Ausminx, xmx=Ausmaxx, ymn=Ausminy, ymx=Ausmaxy, crs=CRS('+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0'))
-  cell <- cellFromXY(r, cbind(c(longitude), c(latitude)))
+#  r <- getSMIPSAustTemplate()
   
-  colNum <- colFromCell(r, cell)
-  rowNum <- rowFromCell(r, cell)
-  print(colNum)
+  cell <- getGDALrowcolFromSMIPSTemplate(longitude,latitude)
+  colNum <- cell$colNum
+  rowNum <- cell$rowNum
   
-  # get the max day in the Thredd catalogue
-  url <- paste0('http://esoil.io/thredds/dodsC/SMIPSall/SMIPSv0.5.nc.dds?time')
-  req <- GET(url)
-  stop_for_status(req)
-  t1 <- content(req, 'text')
-  k <- regmatches(t1, gregexpr("\\[.+?\\]", t1))[[1]]
-  k <- substring(k, 2, nchar(k)-1)
-  maxDay <- as.numeric(str_trim(str_split(k, '=')[[1]][2]))
-  
-  startDayNum = as.numeric(as.Date(paste(startDate), "%d-%m-%Y") - as.Date(paste(originDate), "%d-%m-%Y"))
- 
-  endDayNum = as.numeric(as.Date(paste(endDate), "%d-%m-%Y") - as.Date(paste(originDate), "%d-%m-%Y"))
+  startDayNum = getThreddsDay(startDate)
+  endDayNum = getThreddsDay(endDate)
   
   if(startDayNum < 0){
     startDayNum=0
     startDate=originDate
   }
   
-  
+  maxDay <- getThreddsMaxDay()
   #adjust if requested end date is past the last date in the datacube
   daylag = 0
   if (endDayNum > maxDay){
@@ -88,10 +116,8 @@ getSMIPSTimeSeries <- function(product, startDate, endDate, longitude, latitude)
   
   url <- paste0('http://esoil.io/thredds/dodsC/SMIPS/SMIPSv0.5.nc.ascii?',product,'%5B',startDayNum, ':', endDayNum ,'%5D%5B', rowNum-1,'%5D%5B', colNum-1, '%5D')
   #url <- paste0('http://esoil.io/thredds/dodsC/SMIPS/SMIPSv0.5.nc.ascii?',product,'%5B',startDayNum,'%5D%5B', rowNum,'%5D%5B', colNum, '%5D')
-  req <- GET(url)
-  stop_for_status(req)
-  d1 <-  content(req, 'text', encoding = 'UTF-8')
-  
+
+  d1 <- retrieveData(url)
   ndays <- (endDayNum-startDayNum) + 1
   dts <- seq.Date(from=as.Date(paste(startDate), "%d-%m-%Y"), to=as.Date(paste(endDate), "%d-%m-%Y")-daylag, by='days')
   pdts <- paste0(dts, 'T00:00:00')
@@ -102,14 +128,16 @@ getSMIPSTimeSeries <- function(product, startDate, endDate, longitude, latitude)
 }
 
 
-getSMIPSrasterCSIRO_OpenDAP <- function(product=NULL, dt, bboxExt=NULL, resFactor=1){
+getSMIPSRaster <- function(product=NULL, dt, bboxExt=NULL, resFactor=1){
   
   if(is.null(product)){
     product = defaultProduct
   }
   
   if (is.null(bboxExt)){
-    minx=Ausminx; miny=Ausminy; maxx=Ausmaxx; maxy=Ausmaxy
+   templateR <- getSMIPSAustTemplate()
+   rext <-  extent(templateR)
+    minx=rext@xmin ; miny=rext@ymin; maxx=rext@xmax; maxy=rext@ymax
   }else{
     minx=bboxExt@xmin; miny= bboxExt@ymin; maxx=bboxExt@xmax; maxy=bboxExt@ymax
     #bboxExt@xmin & outDF$Longitude <= bboxExt@xmax & outDF$Latitude >= bboxExt@ymin & outDF$Latitude <= bboxExt@ymax)
@@ -125,15 +153,75 @@ getSMIPSrasterCSIRO_OpenDAP <- function(product=NULL, dt, bboxExt=NULL, resFacto
   ll <- getcellsForALatLon(minx, miny)
   ur <- getcellsForALatLon(maxx, maxy)
   
-  subcols <- ceiling( c((ur$colNum-1) - ll$colNum) / stridey )
-  subrows <- ceiling( c((ll$rowNum-1) - ur$rowNum) / stridey )
+  #subcols <- ceiling( c((ur$colNum-1) - ll$colNum) / stridey )
+  #subrows <- ceiling( c((ll$rowNum-1) - ur$rowNum) / stridey )
   
-  dayNum = as.numeric(as.Date(paste(dt), "%d-%m-%Y") - as.Date(paste(originDate), "%d-%m-%Y"))
-  print(dayNum)
+  dayNum = getThreddsDay(dt)
+  #url <- paste0(threddsPath,'.ascii?',product, '%5B',dayNum ,'%5D%5B', ur$rowNum-1, ':', ll$rowNum-1, '%5D%5B', ll$colNum-1, ':',  ur$colNum-1, '%5D')
+  
   url <- paste0('http://esoil.io/thredds/dodsC/SMIPSall/SMIPSv0.5.nc.ascii?',product, '%5B',dayNum ,'%5D%5B', ur$rowNum-1, ':', stridey, ':', ll$rowNum-1, '%5D%5B', ll$colNum-1, ':', stridey, ':', ur$colNum-1, '%5D')
  # url <- paste0('http://esoil.io/thredds/dodsC/SMIPSall/SMIPSv0.5.nc.ascii?',product, '%5B',dayNum ,'%5D%5B', ur$rowNum-1, ':',  ll$rowNum-1, '%5D%5B', ll$colNum-1, ':', ur$colNum-1, '%5D')
   
    print(url)
+   
+   d1 <- retrieveData(url)
+  
+  odData1 <- read.table(text=d1, skip=12, nrows = Ausnumrows , sep = ',')
+  
+  #odData1 <- read.table(text=d1, skip=12, nrows = subrows , sep = ',')
+  
+  odData2 <- odData1[,-1]
+  m1 <- as.matrix(odData2)
+  
+  r <- raster(nrows=nrow(odData2), ncols=ncol(odData2), xmn=minx, xmx=maxx, ymn=miny, ymx=maxy, crs=sp::CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"),  vals=m1)
+
+  writeRaster(r, paste0('c:/temp/', dt, '_', product, '.tif'))
+  
+  return(r)
+}
+
+
+getSMIPSRasterSetXY <- function(product=NULL, dt, bboxExt=NULL, outcols=Ausnumcols, outrows=Ausnumrows){
+  
+ # wmsnumrows <- 348
+#  wmsnumcols <- 412
+
+ # outrows <- 348
+#   outcols <- 412
+  
+  
+  if(is.null(product)){
+    product = defaultProduct
+  }
+  
+  if (is.null(bboxExt)){
+    templateR <- getSMIPSAustTemplate()
+    rext <-  extent(templateR)
+    minx=rext@xmin ; miny=rext@ymin; maxx=rext@xmax; maxy=rext@ymax
+  }else{
+    minx=bboxExt@xmin; miny= bboxExt@ymin; maxx=bboxExt@xmax; maxy=bboxExt@ymax
+    #bboxExt@xmin & outDF$Longitude <= bboxExt@xmax & outDF$Latitude >= bboxExt@ymin & outDF$Latitude <= bboxExt@ymax)
+  }
+  
+  xext = maxx - minx
+  yext = maxy - miny
+  
+  stridex <- ceiling(xext / ( AusRes * outcols))
+  stridey <- ceiling(yext / ( AusRes * outrows))
+ # stridey <- resFactor
+  
+  ll <- getcellsForALatLon(minx, miny)
+  ur <- getcellsForALatLon(maxx, maxy)
+  
+  subcols <- ceiling( c((ur$colNum-1) - (ll$colNum-1)) / stridey )
+  subrows <- ceiling( c((ll$rowNum-1) - (ur$rowNum-1)) / stridey )
+  
+  dayNum = getThreddsDay(dt)
+  print(dayNum)
+  url <- paste0('http://esoil.io/thredds/dodsC/SMIPSall/SMIPSv0.5.nc.ascii?',product, '%5B',dayNum ,'%5D%5B', ur$rowNum-1, ':', stridey, ':', ll$rowNum-1, '%5D%5B', ll$colNum-1, ':', stridey, ':', ur$colNum-1, '%5D')
+  # url <- paste0('http://esoil.io/thredds/dodsC/SMIPSall/SMIPSv0.5.nc.ascii?',product, '%5B',dayNum ,'%5D%5B', ur$rowNum-1, ':',  ll$rowNum-1, '%5D%5B', ll$colNum-1, ':', ur$colNum-1, '%5D')
+  
+  print(url)
   
   req <- GET(url)
   stop_for_status(req)
@@ -144,8 +232,11 @@ getSMIPSrasterCSIRO_OpenDAP <- function(product=NULL, dt, bboxExt=NULL, resFacto
   m1 <- as.matrix(odData2)
   
   r <- raster(nrows=nrow(odData2), ncols=ncol(odData2), xmn=minx, xmx=maxx, ymn=miny, ymx=maxy, crs=sp::CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"),  vals=m1)
-
-  return(r)
+  r2 <-raster(nrows=outrows, ncols=outcols, xmn=minx, xmx=maxx, ymn=miny, ymx=maxy)
+  r3 <- resample(r, r2)
+ 
+ # plot(r3)
+  return(r3)
 }
 
 
