@@ -118,9 +118,9 @@ getSMIPSrasterCSIRO_OpenDAP <- function(product=NULL, dt, bboxExt=NULL, resFacto
   xext = maxx - minx
   yext = maxy - miny
   
-  #stridex <- ceiling(xext / ( AusRes * wmsnumcols))
-  #stridey <- ceiling(yext / ( AusRes * wmsnumrows))
-  stridey <- resFactor
+  stridex <- ceiling(xext / ( AusRes * wmsnumcols))
+  stridey <- ceiling(yext / ( AusRes * wmsnumrows))
+  #stridey <- resFactor
   
   ll <- getcellsForALatLon(minx, miny)
   ur <- getcellsForALatLon(maxx, maxy)
