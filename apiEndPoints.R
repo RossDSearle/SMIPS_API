@@ -29,8 +29,6 @@ if(machineName=='soils-discovery'){
 #' @filter logger
 function(req){
 
-
-
   logentry <- paste0(as.character(Sys.time()), ",",
        machineName, ",",
        req$REQUEST_METHOD, req$PATH_INFO, ",",
@@ -65,7 +63,23 @@ writeLogEntry <- function(logfile, logentry){
   }
 }
 
-
+#* Returns a list of the available SMIPS Products
+#* @param format (Optional) format of the response to return. Either json, csv, or xml. Default = json.
+#* @tag SMIPS
+#* @get /SMIPS/Products
+apiGetSMIPSProducts<- function( res, format='json'){
+  
+  tryCatch({
+    label='Products'
+    resp <- cerealize(supportedProducts, label, format, res)
+    return(resp)
+  }, error = function(res)
+  {
+    print(geterrmessage())
+    res$status <- 400
+    list(error=jsonlite::unbox(geterrmessage()))
+  })
+}
 
 
 
