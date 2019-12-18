@@ -8,7 +8,7 @@ library(stringr)
 
 
 RepoPath <- 'http://esoil.io/thredds/dodsC/SMIPSall/SMIPSv0.5.nc'
-defaultProduct <- 'Analysis_Wetness_Index'
+defaultProduct <- 'Openloop_Wetness_Index'
 
 supportedProducts <- c('Openloop_Wetness_Index', 'Analysis_Wetness_Index')
 
@@ -45,7 +45,7 @@ getcellsForALatLon <- function(lon, lat){
 
 getThreddsDay <- function(theDate){
   d <- as.numeric(as.Date(paste(theDate), "%d-%m-%Y") - as.Date(paste(originDate), "%d-%m-%Y"))
-  print(d)
+ # print(d)
   return(d)
 }
 
@@ -128,20 +128,20 @@ getSMIPSTimeSeries <- function(product, startDate, endDate, longitude, latitude)
 }
 
 
-getSMIPSRaster <- function(product=NULL, dt, bboxExt=NULL, resFactor=1){
+getSMIPSRaster <- function(product=NULL, dt, resFactor=1){
   
   if(is.null(product)){
     product = defaultProduct
   }
   
-  if (is.null(bboxExt)){
+ # if (is.null(bboxExt)){
    templateR <- getSMIPSAustTemplate()
    rext <-  extent(templateR)
     minx=rext@xmin ; miny=rext@ymin; maxx=rext@xmax; maxy=rext@ymax
-  }else{
-    minx=bboxExt@xmin; miny= bboxExt@ymin; maxx=bboxExt@xmax; maxy=bboxExt@ymax
-    #bboxExt@xmin & outDF$Longitude <= bboxExt@xmax & outDF$Latitude >= bboxExt@ymin & outDF$Latitude <= bboxExt@ymax)
-  }
+  # }else{
+  #   minx=bboxExt@xmin; miny= bboxExt@ymin; maxx=bboxExt@xmax; maxy=bboxExt@ymax
+  #   #bboxExt@xmin & outDF$Longitude <= bboxExt@xmax & outDF$Latitude >= bboxExt@ymin & outDF$Latitude <= bboxExt@ymax)
+  # }
  
   xext = maxx - minx
   yext = maxy - miny
@@ -154,7 +154,8 @@ getSMIPSRaster <- function(product=NULL, dt, bboxExt=NULL, resFactor=1){
   ur <- getcellsForALatLon(maxx, maxy)
   
   #subcols <- ceiling( c((ur$colNum-1) - ll$colNum) / stridey )
-  #subrows <- ceiling( c((ll$rowNum-1) - ur$rowNum) / stridey )
+  subrows <- ceiling( c((ll$rowNum-1) - ur$rowNum) / stridey )
+ # print(subrows)
   
   dayNum = getThreddsDay(dt)
   #url <- paste0(threddsPath,'.ascii?',product, '%5B',dayNum ,'%5D%5B', ur$rowNum-1, ':', ll$rowNum-1, '%5D%5B', ll$colNum-1, ':',  ur$colNum-1, '%5D')
@@ -166,7 +167,7 @@ getSMIPSRaster <- function(product=NULL, dt, bboxExt=NULL, resFactor=1){
    
    d1 <- retrieveData(url)
   
-  odData1 <- read.table(text=d1, skip=12, nrows = Ausnumrows , sep = ',')
+  odData1 <- read.table(text=d1, skip=12, nrows = subrows , sep = ',')
   
   #odData1 <- read.table(text=d1, skip=12, nrows = subrows , sep = ',')
   
@@ -174,8 +175,6 @@ getSMIPSRaster <- function(product=NULL, dt, bboxExt=NULL, resFactor=1){
   m1 <- as.matrix(odData2)
   
   r <- raster(nrows=nrow(odData2), ncols=ncol(odData2), xmn=minx, xmx=maxx, ymn=miny, ymx=maxy, crs=sp::CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"),  vals=m1)
-
-  writeRaster(r, paste0('c:/temp/', dt, '_', product, '.tif'))
   
   return(r)
 }

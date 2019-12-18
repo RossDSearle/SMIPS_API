@@ -43,9 +43,22 @@ vals
 
 #getSMIPSTimeSeries(product='Analysis_Wetness_Index', startDate='20-11-2015', endDate='20-11-2015', longitude=longitude, latitude=latitude )
 
+
+
+
+
+
 dt='15-06-2018'
-r <- getSMIPSrasterCSIRO_OpenDAP(dt=dt)
+r <- getSMIPSRaster(dt='16-06-2019', resFactor = 50)
+r
+plot(r)
 writeRaster(r, paste0('c:/temp/', dt, '.tif'), overwrite=T)
+
+
+
+
+
+
 
 
 dt='20-11-2015'

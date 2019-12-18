@@ -70,8 +70,10 @@ writeLogEntry <- function(logfile, logentry){
 apiGetSMIPSProducts<- function( res, format='json'){
   
   tryCatch({
-    label='Products'
-    resp <- cerealize(supportedProducts, label, format, res)
+    label='Product'
+    prods <- data.frame(Product=c('SMIPS-Raw', 'SMIPS-Assim'))
+    #prods <- c('SMIPS-Raw', 'SMIPS-Assim')
+    resp <- cerealize(prods, label, format, res)
     return(resp)
   }, error = function(res)
   {
@@ -153,47 +155,46 @@ apiGetSMIPSTimeseries<- function( res, sdate=NULL, edate=NULL, longitude=NULL, l
 
 
 
-#* Returns a SMIPS raster as GeoTiff
+#* Returns a full extent SMIPS raster as GeoTiff
 
-#* @param date Date for soil moisture map. (format = DD-MM-YYYY)
-#* @param product Region to generate soil moisture map for. (SFS is only option currently)
-#* @param bbox Depth to generate soil moisture map for. 
-#* @param resFactor Depth to generate soil moisture map for. 
-#' @html
+
+#* @param resFactor (Optional) Reduce the native resolutio by this factor. (Default = 1)
+#* @param bbox (Optional) Bounding box of area to return in the form'minx;maxx;miny;maxy'. (Default = 112.905;154.005;-43.735;-9.005) 
+#* @param product (Optional) SMIPS product to return ('SMIPS-RawIndex', 'SMIPS-AssimIndex') (Default = SMIPS-RawIndex')
+#* @param date (Required) Date for soil moisture map (format = dd-dd-yyyy).
+
 #* @tag SMIPS
 #* @get /SMIPS/Raster
 
-apiGetSMIPSRaster <- function(res, product=NULL, date=NULL, bbox=NULL,  resFactor=1){
+apiGetSMIPSRaster <- function(res, product=NULL, date=NULL,   resFactor=1){
   
   tryCatch({
     
-    if(is.null(product)){
-      product=defaultProduct
-    }
-    
-    if(!is.null(bbox)){
-      bits <- str_split(bbox, ';')
-      l <- as.numeric(bits[[1]][1])
-      r <- as.numeric(bits[[1]][2])
-      b <- as.numeric(bits[[1]][3])
-      t <- as.numeric(bits[[1]][4])
-      bboxExt <- extent(l, r, b, t)
-    }else{
-      bboxExt <- NULL
-    }
+    prod <- getProduct(product)
+    # 
+    # if(!is.null(bbox)){
+    #   bits <- str_split(bbox, ';')
+    #   l <- as.numeric(bits[[1]][1])
+    #   r <- as.numeric(bits[[1]][2])
+    #   b <- as.numeric(bits[[1]][3])
+    #   t <- as.numeric(bits[[1]][4])
+    #   bboxExt <- extent(l, r, b, t)
+    # }else{
+    #   bboxExt <- NULL
+    # }
 
-    res$setHeader("content-disposition", paste0("attachment; filename=SMIPS_", product, "_", date,  ".tif"));
+    res$setHeader("content-disposition", paste0("attachment; filename=SMIPS_", prod, "_", date,  ".tif"));
     res$setHeader("Content-Type", "image/tiff")
     
-    r <- getSMIPSRaster(product=product, dt=date, bboxExt=bboxExt, resFactor=resFactor)
+    r <- getSMIPSRaster(product=prod, dt=date, bboxExt=NULL, resFactor=resFactor)
     tf <- tempfile(fileext = '.tif')
     print(r)
     print(tf)
-    writeRaster(r, tf)
-    bin <- readBin(paste0(tf), "raw", n=file.info(paste0(tf))$size)
+   # writeRaster(r, tf)
+    #bin <- readBin(paste0(tf), "raw", n=file.info(paste0(tf))$size)
     unlink(tf)
     
-    return(bin)
+    return(readBin(r, "raw"))
     
   }, error = function(res)
   {
@@ -204,12 +205,14 @@ apiGetSMIPSRaster <- function(res, product=NULL, date=NULL, bbox=NULL,  resFacto
   
 }
 
-#* Returns a  windowes SMIPS raster as GeoTiff
+#* Returns a spatial subsetted window SMIPS raster as GeoTiff
 
-#* @param date Date for soil moisture map. (format = DD-MM-YYYY)
-#* @param product Region to generate soil moisture map for. (SFS is only option currently)
-#* @param bbox Depth to generate soil moisture map for (minx;maxx;miny;maxy). 
-#* @param resFactor Depth to generate soil moisture map for. 
+#* @param cols (Optional) number of columns in the returned image. (Default = 600)
+#* @param rows (Optional) number of rows in the returned image. (Default = 400)
+#* @param bbox (Optional) Bounding box of area to return in the form'minx;maxx;miny;maxy'. (Default = 112.905;154.005;-43.735;-9.005) 
+#* @param product (Optional) SMIPS product to return. ('SMIPS-RawIndex', 'SMIPS-AssimIndex') (Default = SMIPS-RawIndex')
+#* @param date (Required) Date for soil moisture map. (format = DD-MM-YYYY)
+
 #' @html
 #* @tag SMIPS
 #* @get /SMIPS/RasterWindow
@@ -218,9 +221,8 @@ apiGetSMIPSRasterWindow <- function(res, product=NULL, date=NULL, bbox=NULL, out
   
   tryCatch({
     
-    if(is.null(product)){
-      product=defaultProduct
-    }
+    
+   prod <- getProduct(product)
     
     if(!is.null(bbox)){
       bits <- str_split(bbox, ';')
@@ -236,7 +238,7 @@ apiGetSMIPSRasterWindow <- function(res, product=NULL, date=NULL, bbox=NULL, out
     res$setHeader("content-disposition", paste0("attachment; filename=SMIPS_", product, "_", date,  ".tif"));
     res$setHeader("Content-Type", "image/tiff")
     
-    r <- getSMIPSRasterWindow(product=product, dt=date, bboxExt=bboxExt, outcols, outrows)
+    r <- getSMIPSRasterWindow(product=prod, dt=date, bboxExt=bboxExt, outcols, outrows)
     tf <- tempfile(fileext = '.tif')
 
     writeRaster(r, tf, overwrite=T)
@@ -284,6 +286,21 @@ cerealize <- function(DF, label, format, res){
 }
 
 
+
+getProduct <- function(product){
+  
+  
+  if(is.null(product)){
+    return('Openloop_Wetness_Index')
+  }else if(product == 'SMIPS-Raw'){
+    return('Openloop_Wetness_Index')
+  }else if(product == 'SMIPS-Assim' ){
+    return('Analysis_Wetness_Index')
+  }else{
+    return(NULL)
+  }
+  
+}
 
 writecsv <- function(DF){
 
