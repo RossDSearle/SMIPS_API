@@ -129,7 +129,12 @@ getSMIPSTimeSeries <- function(product, startDate, endDate, longitude, latitude)
 
 
 checkRasterInputs <- function(dt){
-  if(is.null(dt)) { stop("The date parameter is required")}
+  if(is.null(dt)) { stop("The date parameter is required here")}
+}
+
+checkRasterInputs2 <- function(dt){
+  print(dt)
+  if(is.null(dt)) { stop("The date parameter is required here window")}
 }
 
 
@@ -188,9 +193,11 @@ getSMIPSRaster <- function(product=NULL, dt, resFactor=1){
 }
 
 
-getSMIPSRasterWindow <- function(product=NULL, dt, bboxExt=NULL, outcols=600, outrows=400){
+getSMIPSRasterWindow <- function(product=NULL, dt, bboxExt=NULL, outcols=NULL, outrows=NULL){
   
+  checkRasterInputs2(dt)
   
+  print(paste0('cols = ', outrows))
   
   if(is.null(outcols)){outcols=600}
   if(is.null(outrows)){outrows=400}
