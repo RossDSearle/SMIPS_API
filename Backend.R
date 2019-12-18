@@ -146,9 +146,9 @@ getSMIPSRaster <- function(product=NULL, dt, resFactor=1){
   xext = maxx - minx
   yext = maxy - miny
   
-  stridex <- ceiling(xext / ( AusRes * wmsnumcols))
-  stridey <- ceiling(yext / ( AusRes * wmsnumrows))
-  #stridey <- resFactor
+  # stridex <- ceiling(xext / ( AusRes * wmsnumcols))
+  # stridey <- ceiling(yext / ( AusRes * wmsnumrows))
+  stridey <- resFactor
   
   ll <- getcellsForALatLon(minx, miny)
   ur <- getcellsForALatLon(maxx, maxy)
