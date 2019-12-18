@@ -128,7 +128,15 @@ getSMIPSTimeSeries <- function(product, startDate, endDate, longitude, latitude)
 }
 
 
+checkRasterInputs <- function(dt){
+  if(is.null(dt)) { stop("The date parameter is required")}
+}
+
+
 getSMIPSRaster <- function(product=NULL, dt, resFactor=1){
+  
+  
+ checkRasterInputs(dt)
   
   if(is.null(product)){
     product = defaultProduct
@@ -180,7 +188,7 @@ getSMIPSRaster <- function(product=NULL, dt, resFactor=1){
 }
 
 
-getSMIPSRasterWindow <- function(product=NULL, dt, bboxExt=NULL, outcols, outrows){
+getSMIPSRasterWindow <- function(product=NULL, dt, bboxExt=NULL, outcols=600, outrows=400){
   
   
   
@@ -246,7 +254,7 @@ getSMIPSRasterWindow <- function(product=NULL, dt, bboxExt=NULL, outcols, outrow
   
   r <- raster(nrows=nrow(odData2), ncols=ncol(odData2), xmn=minx, xmx=maxx, ymn=miny, ymx=maxy, crs=sp::CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"),  vals=m1)
   r2 <-raster(nrows=outrows, ncols=outcols, xmn=minx, xmx=maxx, ymn=miny, ymx=maxy)
-  r3 <- resample(r, r2)
+  r3 <- resample(r, r2, method="bilinear")
  
  # plot(r3)
   return(r3)

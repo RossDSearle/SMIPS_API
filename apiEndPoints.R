@@ -161,7 +161,7 @@ apiGetSMIPSTimeseries<- function( res, sdate=NULL, edate=NULL, longitude=NULL, l
 #* @param resFactor (Optional) Reduce the native resolutio by this factor. (Default = 1)
 #* @param product (Optional) SMIPS product to return ('SMIPS-RawIndex', 'SMIPS-AssimIndex') (Default = SMIPS-RawIndex')
 #* @param date (Required) Date for soil moisture map (format = dd-dd-yyyy).
-#' @html
+
 #* @tag SMIPS
 #* @get /SMIPS/Raster
 
@@ -170,33 +170,35 @@ apiGetSMIPSRaster <- function(res, product=NULL, date=NULL,   resFactor=1){
   tryCatch({
     
     prod <- getProduct(product)
-    # 
-    # if(!is.null(bbox)){
-    #   bits <- str_split(bbox, ';')
-    #   l <- as.numeric(bits[[1]][1])
-    #   r <- as.numeric(bits[[1]][2])
-    #   b <- as.numeric(bits[[1]][3])
-    #   t <- as.numeric(bits[[1]][4])
-    #   bboxExt <- extent(l, r, b, t)
-    # }else{
-    #   bboxExt <- NULL
-    # }
-
-    res$setHeader("content-disposition", paste0("attachment; filename=SMIPS_", prod, "_", date,  ".tif"))
-    res$setHeader("Content-Type", "image/tiff")
+    
     
     r <- getSMIPSRaster(product=prod, dt=date, resFactor=as.numeric(resFactor))
+    
+    #if(bob <- class(r) == 'RasterLayer'){
+      
+    res$setHeader("content-disposition", paste0("attachment; filename=SMIPS_", prod, "_", date,  ".tif"))
+    res$setHeader("Content-Type", list(type="application/octet-stream"))
+      
+    
     tf <- tempfile(fileext = '.tif')
     con <- 
     writeRaster(r, tf, overwrite=T)
     bin <- readBin(paste0(tf), "raw", n=file.info(paste0(tf))$size)
     unlink(tf)
-    #readBin(r, "raw")
-    return(bin)
+
+    res$body <- bin
+
+    return(res)
+    # }
+    # else{
+    #  print( 'I am in here')
+    #  
+    #   
+    #   return(list(error='Woops'))
+    # }
     
   }, error = function(res)
   {
-    print(geterrmessage())
     res$status <- 400
     list(error=jsonlite::unbox(geterrmessage()))
   })
@@ -211,7 +213,7 @@ apiGetSMIPSRaster <- function(res, product=NULL, date=NULL,   resFactor=1){
 #* @param product (Optional) SMIPS product to return. ('SMIPS-RawIndex', 'SMIPS-AssimIndex') (Default = SMIPS-RawIndex')
 #* @param date (Required) Date for soil moisture map. (format = DD-MM-YYYY)
 
-#' @html
+#* @serializer contentType list(type="application/octet-stream")
 #* @tag SMIPS
 #* @get /SMIPS/RasterWindow
 
