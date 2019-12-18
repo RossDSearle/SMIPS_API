@@ -126,7 +126,7 @@ apiGetSMIPSTimeseries<- function( res, sdate=NULL, edate=NULL, longitude=NULL, l
     "RequestEndDate"=ed,
     "AggregationPeriod"= "none",
     "DataType"= "Soil-Moisture",
-    "Units"= "Percent",
+    "Units"= "Proportion",
     "Calibrated"= F
 
     )
@@ -153,15 +153,11 @@ apiGetSMIPSTimeseries<- function( res, sdate=NULL, edate=NULL, longitude=NULL, l
 }
 
 
-
-
 #* Returns a full extent SMIPS raster as GeoTiff
-
 
 #* @param resFactor (Optional) Reduce the native resolutio by this factor. (Default = 1)
 #* @param product (Optional) SMIPS product to return ('SMIPS-RawIndex', 'SMIPS-AssimIndex') (Default = SMIPS-RawIndex')
 #* @param date (Required) Date for soil moisture map (format = dd-dd-yyyy).
-#' @html
 #* @tag SMIPS
 #* @get /SMIPS/Raster
 
@@ -170,33 +166,30 @@ apiGetSMIPSRaster <- function(res, product=NULL, date=NULL,   resFactor=1){
   tryCatch({
     
     prod <- getProduct(product)
-    # 
-    # if(!is.null(bbox)){
-    #   bits <- str_split(bbox, ';')
-    #   l <- as.numeric(bits[[1]][1])
-    #   r <- as.numeric(bits[[1]][2])
-    #   b <- as.numeric(bits[[1]][3])
-    #   t <- as.numeric(bits[[1]][4])
-    #   bboxExt <- extent(l, r, b, t)
-    # }else{
-    #   bboxExt <- NULL
-    # }
-
-    res$setHeader("content-disposition", paste0("attachment; filename=SMIPS_", prod, "_", date,  ".tif"))
-    res$setHeader("Content-Type", "image/tiff")
-    
     r <- getSMIPSRaster(product=prod, dt=date, resFactor=as.numeric(resFactor))
+    #if(class(r) == 'RasterLayer'){
+      
+    
+    print("How did I get hee")
+    res$setHeader("content-disposition", paste0("attachment; filename=SMIPS_", prod, "_", date,  ".tif"))
+    res$setHeader("Content-Type", list(type="application/octet-stream"))
+      
     tf <- tempfile(fileext = '.tif')
     con <- 
     writeRaster(r, tf, overwrite=T)
     bin <- readBin(paste0(tf), "raw", n=file.info(paste0(tf))$size)
     unlink(tf)
-    #readBin(r, "raw")
-    return(bin)
+
+    res$body <- bin
+    return(res)
+    # }
+    # else{
+    #  print( 'I am in here')
+    #   return(list(error='Woops'))
+    # }
     
   }, error = function(res)
   {
-    print(geterrmessage())
     res$status <- 400
     list(error=jsonlite::unbox(geterrmessage()))
   })
@@ -210,12 +203,10 @@ apiGetSMIPSRaster <- function(res, product=NULL, date=NULL,   resFactor=1){
 #* @param bbox (Optional) Bounding box of area to return in the form'minx;maxx;miny;maxy'. (Default = 112.905;154.005;-43.735;-9.005) 
 #* @param product (Optional) SMIPS product to return. ('SMIPS-RawIndex', 'SMIPS-AssimIndex') (Default = SMIPS-RawIndex')
 #* @param date (Required) Date for soil moisture map. (format = DD-MM-YYYY)
-
-#' @html
 #* @tag SMIPS
 #* @get /SMIPS/RasterWindow
 
-apiGetSMIPSRasterWindow <- function(res, product=NULL, date=NULL, bbox=NULL, outcols=NULL, outrows=NULL){
+apiGetSMIPSRasterWindow <- function(res, product=NULL, date=NULL, bbox=NULL, cols=NULL, rows=NULL){
   
   tryCatch({
     
@@ -233,22 +224,26 @@ apiGetSMIPSRasterWindow <- function(res, product=NULL, date=NULL, bbox=NULL, out
       bboxExt <- NULL
     }
     
-    res$setHeader("content-disposition", paste0("attachment; filename=SMIPS_", product, "_", date,  ".tif"));
-    res$setHeader("Content-Type", "image/tiff")
+  
+    r <- getSMIPSRasterWindow(product=prod, dt=date, bboxExt=bboxExt, as.numeric(cols),  as.numeric(rows))
     
-    r <- getSMIPSRasterWindow(product=prod, dt=date, bboxExt=bboxExt, outcols, outrows)
+    res$setHeader("content-disposition", paste0("attachment; filename=SMIPS_", prod, "_", date,  ".tif"))
+    res$setHeader("Content-Type", list(type="application/octet-stream"))
+    
     tf <- tempfile(fileext = '.tif')
 
     writeRaster(r, tf, overwrite=T)
     bin <- readBin(paste0(tf), "raw", n=file.info(paste0(tf))$size)
     unlink(tf)
     
-    return(bin)
+    res$body <- bin
+    return(res)
     
   }, error = function(res)
   {
     print(geterrmessage())
     res$status <- 400
+    #res$setHeader("Content-Type", list(type="application/json"))
     list(error=jsonlite::unbox(geterrmessage()))
   })
   
