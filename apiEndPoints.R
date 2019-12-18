@@ -159,10 +159,9 @@ apiGetSMIPSTimeseries<- function( res, sdate=NULL, edate=NULL, longitude=NULL, l
 
 
 #* @param resFactor (Optional) Reduce the native resolutio by this factor. (Default = 1)
-#* @param bbox (Optional) Bounding box of area to return in the form'minx;maxx;miny;maxy'. (Default = 112.905;154.005;-43.735;-9.005) 
 #* @param product (Optional) SMIPS product to return ('SMIPS-RawIndex', 'SMIPS-AssimIndex') (Default = SMIPS-RawIndex')
 #* @param date (Required) Date for soil moisture map (format = dd-dd-yyyy).
-
+#' @html
 #* @tag SMIPS
 #* @get /SMIPS/Raster
 
@@ -183,18 +182,17 @@ apiGetSMIPSRaster <- function(res, product=NULL, date=NULL,   resFactor=1){
     #   bboxExt <- NULL
     # }
 
-    res$setHeader("content-disposition", paste0("attachment; filename=SMIPS_", prod, "_", date,  ".tif"));
+    res$setHeader("content-disposition", paste0("attachment; filename=SMIPS_", prod, "_", date,  ".tif"))
     res$setHeader("Content-Type", "image/tiff")
     
-    r <- getSMIPSRaster(product=prod, dt=date, bboxExt=NULL, resFactor=resFactor)
+    r <- getSMIPSRaster(product=prod, dt=date, resFactor=as.numeric(resFactor))
     tf <- tempfile(fileext = '.tif')
-    print(r)
-    print(tf)
-   # writeRaster(r, tf)
-    #bin <- readBin(paste0(tf), "raw", n=file.info(paste0(tf))$size)
+    con <- 
+    writeRaster(r, tf, overwrite=T)
+    bin <- readBin(paste0(tf), "raw", n=file.info(paste0(tf))$size)
     unlink(tf)
-    
-    return(readBin(r, "raw"))
+    #readBin(r, "raw")
+    return(bin)
     
   }, error = function(res)
   {
