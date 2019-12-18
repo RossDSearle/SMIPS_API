@@ -185,11 +185,61 @@ apiGetSMIPSRaster <- function(res, product=NULL, date=NULL, bbox=NULL,  resFacto
     res$setHeader("content-disposition", paste0("attachment; filename=SMIPS_", product, "_", date,  ".tif"));
     res$setHeader("Content-Type", "image/tiff")
     
-    r <- getSMIPSrasterCSIRO_OpenDAP(product=product, dt=date, bboxExt=bboxExt, resFactor=resFactor)
+    r <- getSMIPSRaster(product=product, dt=date, bboxExt=bboxExt, resFactor=resFactor)
     tf <- tempfile(fileext = '.tif')
     print(r)
     print(tf)
     writeRaster(r, tf)
+    bin <- readBin(paste0(tf), "raw", n=file.info(paste0(tf))$size)
+    unlink(tf)
+    
+    return(bin)
+    
+  }, error = function(res)
+  {
+    print(geterrmessage())
+    res$status <- 400
+    list(error=jsonlite::unbox(geterrmessage()))
+  })
+  
+}
+
+#* Returns a  windowes SMIPS raster as GeoTiff
+
+#* @param date Date for soil moisture map. (format = DD-MM-YYYY)
+#* @param product Region to generate soil moisture map for. (SFS is only option currently)
+#* @param bbox Depth to generate soil moisture map for (minx;maxx;miny;maxy). 
+#* @param resFactor Depth to generate soil moisture map for. 
+#' @html
+#* @tag SMIPS
+#* @get /SMIPS/RasterWindow
+
+apiGetSMIPSRasterWindow <- function(res, product=NULL, date=NULL, bbox=NULL, outcols=NULL, outrows=NULL){
+  
+  tryCatch({
+    
+    if(is.null(product)){
+      product=defaultProduct
+    }
+    
+    if(!is.null(bbox)){
+      bits <- str_split(bbox, ';')
+      l <- as.numeric(bits[[1]][1])
+      r <- as.numeric(bits[[1]][2])
+      b <- as.numeric(bits[[1]][3])
+      t <- as.numeric(bits[[1]][4])
+      bboxExt <- extent(l, r, b, t)
+    }else{
+      bboxExt <- NULL
+    }
+    
+    res$setHeader("content-disposition", paste0("attachment; filename=SMIPS_", product, "_", date,  ".tif"));
+    res$setHeader("Content-Type", "image/tiff")
+    
+    r <- getSMIPSRasterWindow(product=product, dt=date, bboxExt=bboxExt, outcols, outrows)
+    tf <- tempfile(fileext = '.tif')
+
+    writeRaster(r, tf, overwrite=T)
     bin <- readBin(paste0(tf), "raw", n=file.info(paste0(tf))$size)
     unlink(tf)
     

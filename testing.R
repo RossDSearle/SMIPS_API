@@ -50,9 +50,9 @@ writeRaster(r, paste0('c:/temp/', dt, '.tif'), overwrite=T)
 
 dt='20-11-2015'
 dt='14-06-2019'
-bbox <- extent(140, 154, -20, -10)
-r <- getSMIPSRasterSetXY(product='Openloop_Wetness_Index',  dt=dt, bboxExt=bbox, outcols = 600, outrows = 400)
-r <- getSMIPSRasterSetXY(product='Openloop_Wetness_Index',  dt=dt, bboxExt=NULL, outcols = 600, outrows = 400)
+bbox <- extent(140, 141, -20, -19)
+r <- getSMIPSRasterWindow(product='Openloop_Wetness_Index',  dt=dt, bboxExt=bbox, outcols = 600, outrows = 400)
+r <- getSMIPSRasterWindow(product='Openloop_Wetness_Index',  dt=dt, bboxExt=NULL, outcols = 600, outrows = 400)
 r
 plot(r)
 writeRaster(r, paste0('c:/temp/smips/', dt, '_', 'Openloop_Wetness_Index.tif' ))

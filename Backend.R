@@ -181,8 +181,13 @@ getSMIPSRaster <- function(product=NULL, dt, bboxExt=NULL, resFactor=1){
 }
 
 
-getSMIPSRasterSetXY <- function(product=NULL, dt, bboxExt=NULL, outcols=Ausnumcols, outrows=Ausnumrows){
+getSMIPSRasterWindow <- function(product=NULL, dt, bboxExt=NULL, outcols, outrows){
   
+  
+  
+  if(is.null(outcols)){outcols=600}
+  if(is.null(outrows)){outrows=400}
+  print(outrows)
  # wmsnumrows <- 348
 #  wmsnumcols <- 412
 
@@ -203,11 +208,20 @@ getSMIPSRasterSetXY <- function(product=NULL, dt, bboxExt=NULL, outcols=Ausnumco
     #bboxExt@xmin & outDF$Longitude <= bboxExt@xmax & outDF$Latitude >= bboxExt@ymin & outDF$Latitude <= bboxExt@ymax)
   }
   
+  
+  
   xext = maxx - minx
   yext = maxy - miny
   
+  print(outrows)
+ 
+  
   stridex <- ceiling(xext / ( AusRes * outcols))
   stridey <- ceiling(yext / ( AusRes * outrows))
+  
+
+  
+  print(paste0('stridey = ', stridey))
  # stridey <- resFactor
   
   ll <- getcellsForALatLon(minx, miny)
