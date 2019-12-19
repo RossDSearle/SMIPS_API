@@ -7,7 +7,7 @@ library(stringr)
 #http://esoil.io/thredds/catalog/SMIPSall/catalog.html?dataset=SMIPS/SMIPSv0.5.nc
 
 
-RepoPath <- 'http://esoil.io/thredds/dodsC/SMIPSall/SMIPSv0.5.nc'
+threddsPath <- 'http://esoil.io/thredds/dodsC/SMIPSall/SMIPSv0.5.nc'
 defaultProduct <- 'Openloop_Wetness_Index'
 
 supportedProducts <- c('Openloop_Wetness_Index', 'Analysis_Wetness_Index')
@@ -114,7 +114,7 @@ getSMIPSTimeSeries <- function(product, startDate, endDate, longitude, latitude)
     endDayNum = endDayNum-daylag
   }
   
-  url <- paste0('http://esoil.io/thredds/dodsC/SMIPS/SMIPSv0.5.nc.ascii?',product,'%5B',startDayNum, ':', endDayNum ,'%5D%5B', rowNum-1,'%5D%5B', colNum-1, '%5D')
+  url <- paste0(threddsPath, '.ascii?',product,'%5B',startDayNum, ':', endDayNum ,'%5D%5B', rowNum-1,'%5D%5B', colNum-1, '%5D')
   #url <- paste0('http://esoil.io/thredds/dodsC/SMIPS/SMIPSv0.5.nc.ascii?',product,'%5B',startDayNum,'%5D%5B', rowNum,'%5D%5B', colNum, '%5D')
 
   d1 <- retrieveData(url)
@@ -173,7 +173,7 @@ getSMIPSRaster <- function(product=NULL, dt, resFactor=1){
   dayNum = getThreddsDay(dt)
   #url <- paste0(threddsPath,'.ascii?',product, '%5B',dayNum ,'%5D%5B', ur$rowNum-1, ':', ll$rowNum-1, '%5D%5B', ll$colNum-1, ':',  ur$colNum-1, '%5D')
   
-  url <- paste0('http://esoil.io/thredds/dodsC/SMIPSall/SMIPSv0.5.nc.ascii?',product, '%5B',dayNum ,'%5D%5B', ur$rowNum-1, ':', stridey, ':', ll$rowNum-1, '%5D%5B', ll$colNum-1, ':', stridey, ':', ur$colNum-1, '%5D')
+  url <- paste0(threddsPath, '.ascii?',product, '%5B',dayNum ,'%5D%5B', ur$rowNum-1, ':', stridey, ':', ll$rowNum-1, '%5D%5B', ll$colNum-1, ':', stridey, ':', ur$colNum-1, '%5D')
  # url <- paste0('http://esoil.io/thredds/dodsC/SMIPSall/SMIPSv0.5.nc.ascii?',product, '%5B',dayNum ,'%5D%5B', ur$rowNum-1, ':',  ll$rowNum-1, '%5D%5B', ll$colNum-1, ':', ur$colNum-1, '%5D')
   
    print(url)
@@ -246,7 +246,7 @@ getSMIPSRasterWindow <- function(product=NULL, dt, bboxExt=NULL, outcols=NULL, o
   
   dayNum = getThreddsDay(dt)
   print(dayNum)
-  url <- paste0('http://esoil.io/thredds/dodsC/SMIPSall/SMIPSv0.5.nc.ascii?',product, '%5B',dayNum ,'%5D%5B', ur$rowNum-1, ':', stridey, ':', ll$rowNum-1, '%5D%5B', ll$colNum-1, ':', stridey, ':', ur$colNum-1, '%5D')
+  url <- paste0(threddsPath, '.ascii?',product, '%5B',dayNum ,'%5D%5B', ur$rowNum-1, ':', stridey, ':', ll$rowNum-1, '%5D%5B', ll$colNum-1, ':', stridey, ':', ur$colNum-1, '%5D')
   # url <- paste0('http://esoil.io/thredds/dodsC/SMIPSall/SMIPSv0.5.nc.ascii?',product, '%5B',dayNum ,'%5D%5B', ur$rowNum-1, ':',  ll$rowNum-1, '%5D%5B', ll$colNum-1, ':', ur$colNum-1, '%5D')
   
   print(url)
