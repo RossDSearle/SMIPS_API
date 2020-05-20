@@ -99,7 +99,7 @@ apiGetSMIPSProducts<- function( res, format='json'){
 #* @param sdate (Optional) First date to return in the form dd-mm-YYYY. If not supplied defaults to 1 year before edate.
 #* @param latitude (Required) Latitude of the location to drill.
 #* @param longitude (Required) Longitude of the location to drill.
-#* @param product (Optional) SMIPS product to query. Current choices are 'Analysis_Wetness_Index' and 'Openloop_Wetness_Index'. Default='Analysis_Wetness_Index'
+#* @param product (Required) SMIPS product to query.
 
 
 #* @tag SMIPS
@@ -164,7 +164,7 @@ apiGetSMIPSTimeseries<- function( res, sdate=NULL, edate=NULL, longitude=NULL, l
 
 
 #* @param bbox (Optional) Subset a window of raster data . 
-#* @param product (Optional) SMIPS product to return 
+#* @param product (Required) SMIPS product to return 
 #* @param date (Required) Date for soil moisture map (format = dd-mm-yyyy).
 #* @tag SMIPS
 #* @get /SMIPS/Raster
