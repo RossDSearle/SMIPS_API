@@ -29,10 +29,10 @@ stop_for_status(bob)
 ts <-  fromJSON( content(bob))
 ts
 
-endDate <- '25-11-2015'
-startDate <- '01-01-2010'
 
-
+startDate <- '01-01-2019'
+endDate <- '02-01-2019'
+vals <- getSMIPSTimeSeries(product='Openloop_Wetness_Index', startDate='01-01-2019', endDate='02-01-2019', longitude=140, latitude=-25 )
 
 
 
