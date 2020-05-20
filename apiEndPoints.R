@@ -1,21 +1,5 @@
-library(stringr)
-library(XML)
-library(xml2)
-library(htmlTable)
-library(raster)
 
-#projectRoot <- 'C:/Users/sea084/Dropbox/RossRCode/Git/TernLandscapes/APIs/SoilDataFederatoR'
-
-machineName <- as.character(Sys.info()['nodename'])
-if(machineName=='soils-discovery'){
-
-  deployDir <-'/srv/plumber/SMIPS_API'
-  #server <- 'http://esoil.io'
-}else{
-  deployDir <-'C:/Users/sea084/Dropbox/RossRCode/Git/SMIPS_API'
-  source(paste0(deployDir, '/Backend.R'))
-  #server <- '0.0.0.0'
-}
+source('Backend.R')
 
 #source(paste0(deployDir, '/R/Helpers/apiHelpers.R'))
 #source(paste0(deployDir, '/R/Backends.R'))
@@ -63,17 +47,20 @@ writeLogEntry <- function(logfile, logentry){
   }
 }
 
-#* Returns a list of the available SMIPS Products
+
+
+#* Returns a table of configuration values
 #* @param format (Optional) format of the response to return. Either json, csv, or xml. Default = json.
 #* @tag SMIPS
-#* @get /SMIPS/Products
+#* @get /SMIPS/Config
 apiGetSMIPSProducts<- function( res, format='json'){
   
   tryCatch({
-    label='Product'
-    prods <- data.frame(Product=c('SMIPS-Raw', 'SMIPS-Assim'))
+    label='Config'
+    #prods <- data.frame(Product=c('SMIPS-Raw', 'SMIPS-Assim'))
     #prods <- c('SMIPS-Raw', 'SMIPS-Assim')
-    resp <- cerealize(prods, label, format, res)
+    config <- getConfig()
+    resp <- cerealize(config, label, format, res)
     return(resp)
   }, error = function(res)
   {
@@ -84,15 +71,35 @@ apiGetSMIPSProducts<- function( res, format='json'){
 }
 
 
+#* Returns a list of the available SMIPS Products
+#* @param format (Optional) format of the response to return. Either json, csv, or xml. Default = json.
+#* @tag SMIPS
+#* @get /SMIPS/Products
+apiGetSMIPSProducts<- function( res, format='json'){
+  
+  tryCatch({
+    label='Product'
+    #prods <- data.frame(Product=c('SMIPS-Raw', 'SMIPS-Assim'))
+    #prods <- c('SMIPS-Raw', 'SMIPS-Assim')
+    prods <- getProducts()
+    resp <- cerealize(prods, label, format, res)
+    return(resp)
+  }, error = function(res)
+  {
+    print(geterrmessage())
+    res$status <- 400
+    list(error=jsonlite::unbox(geterrmessage()))
+  })
+}
 
-#* Returns a TimeSeries
+#* Returns a timeSeries of values at a location
 
 #* @param format (Optional) format of the response to return. Either json, csv, or xml. Default = json.
 #* @param edate (Optional) Last date to return in the form dd-mm-YYYY. If not supplied defaults to today.
 #* @param sdate (Optional) First date to return in the form dd-mm-YYYY. If not supplied defaults to 1 year before edate.
 #* @param latitude (Required) Latitude of the location to drill.
 #* @param longitude (Required) Longitude of the location to drill.
-#* @param product (Optional) SMIPS product to query. Current choices are 'Analysis_Wetness_Index' and 'Openloop_Wetness_Index'. Default='Analysis_Wetness_Index'
+#* @param product (Required) SMIPS product to query.
 
 
 #* @tag SMIPS
@@ -153,40 +160,29 @@ apiGetSMIPSTimeseries<- function( res, sdate=NULL, edate=NULL, longitude=NULL, l
 }
 
 
-#* Returns a full extent SMIPS raster as GeoTiff
+#* Returns a SMIPS raster of soil moisture estimates for a day as GeoTiff
 
-#* @param resFactor (Optional) Reduce the native resolutio by this factor. (Default = 1)
-#* @param product (Optional) SMIPS product to return ('SMIPS-RawIndex', 'SMIPS-AssimIndex') (Default = SMIPS-RawIndex')
-#* @param date (Required) Date for soil moisture map (format = dd-dd-yyyy).
+
+#* @param bbox (Optional) Subset a window of raster data . 
+#* @param product (Required) SMIPS product to return 
+#* @param date (Required) Date for soil moisture map (format = dd-mm-yyyy).
 #* @tag SMIPS
 #* @get /SMIPS/Raster
 
-apiGetSMIPSRaster <- function(res, product=NULL, date=NULL,   resFactor=1){
+apiGetSMIPSRaster <- function(res, product=NULL, date=NULL, bbox=NULL,  resFactor=1){
   
   tryCatch({
     
-    prod <- getProduct(product)
-    r <- getSMIPSRaster(product=prod, dt=date, resFactor=as.numeric(resFactor))
-    #if(class(r) == 'RasterLayer'){
-      
-    
-    print("How did I get hee")
-    res$setHeader("content-disposition", paste0("attachment; filename=SMIPS_", prod, "_", date,  ".tif"))
+    tf <- getSMIPSRasterWCS(product=product, dt=date, bbox, resFactor=as.numeric(resFactor))
+
+    res$setHeader("content-disposition", paste0("attachment; filename=SMIPS_", product, "_", date,  ".tif"))
     res$setHeader("Content-Type", list(type="application/octet-stream"))
       
-    tf <- tempfile(fileext = '.tif')
-    con <- 
-    writeRaster(r, tf, overwrite=T)
     bin <- readBin(paste0(tf), "raw", n=file.info(paste0(tf))$size)
     unlink(tf)
 
     res$body <- bin
     return(res)
-    # }
-    # else{
-    #  print( 'I am in here')
-    #   return(list(error='Woops'))
-    # }
     
   }, error = function(res)
   {
@@ -196,58 +192,58 @@ apiGetSMIPSRaster <- function(res, product=NULL, date=NULL,   resFactor=1){
   
 }
 
-#* Returns a spatial subsetted window SMIPS raster as GeoTiff
-
-#* @param cols (Optional) number of columns in the returned image. (Default = 600)
-#* @param rows (Optional) number of rows in the returned image. (Default = 400)
-#* @param bbox (Optional) Bounding box of area to return in the form'minx;maxx;miny;maxy'. (Default = 112.905;154.005;-43.735;-9.005) 
-#* @param product (Optional) SMIPS product to return. ('SMIPS-RawIndex', 'SMIPS-AssimIndex') (Default = SMIPS-RawIndex')
-#* @param date (Required) Date for soil moisture map. (format = DD-MM-YYYY)
-#* @tag SMIPS
-#* @get /SMIPS/RasterWindow
-
-apiGetSMIPSRasterWindow <- function(res, product=NULL, date=NULL, bbox=NULL, cols=NULL, rows=NULL){
-  
-  tryCatch({
-    
-    
-   prod <- getProduct(product)
-    
-    if(!is.null(bbox)){
-      bits <- str_split(bbox, ';')
-      l <- as.numeric(bits[[1]][1])
-      r <- as.numeric(bits[[1]][2])
-      b <- as.numeric(bits[[1]][3])
-      t <- as.numeric(bits[[1]][4])
-      bboxExt <- extent(l, r, b, t)
-    }else{
-      bboxExt <- NULL
-    }
-    
-  
-    r <- getSMIPSRasterWindow(product=prod, dt=date, bboxExt=bboxExt, as.numeric(cols),  as.numeric(rows))
-    
-    res$setHeader("content-disposition", paste0("attachment; filename=SMIPS_", prod, "_", date,  ".tif"))
-    res$setHeader("Content-Type", list(type="application/octet-stream"))
-    
-    tf <- tempfile(fileext = '.tif')
-
-    writeRaster(r, tf, overwrite=T)
-    bin <- readBin(paste0(tf), "raw", n=file.info(paste0(tf))$size)
-    unlink(tf)
-    
-    res$body <- bin
-    return(res)
-    
-  }, error = function(res)
-  {
-    print(geterrmessage())
-    res$status <- 400
-    #res$setHeader("Content-Type", list(type="application/json"))
-    list(error=jsonlite::unbox(geterrmessage()))
-  })
-  
-}
+# #* Returns a spatial subsetted window SMIPS raster as GeoTiff
+# 
+# #* @param cols (Optional) number of columns in the returned image. (Default = 600)
+# #* @param rows (Optional) number of rows in the returned image. (Default = 400)
+# #* @param bbox (Optional) Bounding box of area to return in the form'minx;maxx;miny;maxy'. (Default = 112.905;154.005;-43.735;-9.005) 
+# #* @param product (Optional) SMIPS product to return. ('SMIPS-RawIndex', 'SMIPS-AssimIndex') (Default = SMIPS-RawIndex')
+# #* @param date (Required) Date for soil moisture map. (format = DD-MM-YYYY)
+# #* @tag SMIPS
+# #* @get /SMIPS/RasterWindow
+# 
+# apiGetSMIPSRasterWindow <- function(res, product=NULL, date=NULL, bbox=NULL, cols=NULL, rows=NULL){
+#   
+#   tryCatch({
+#     
+#     
+#    prod <- getProduct(product)
+#     
+#     if(!is.null(bbox)){
+#       bits <- str_split(bbox, ';')
+#       l <- as.numeric(bits[[1]][1])
+#       r <- as.numeric(bits[[1]][2])
+#       b <- as.numeric(bits[[1]][3])
+#       t <- as.numeric(bits[[1]][4])
+#       bboxExt <- extent(l, r, b, t)
+#     }else{
+#       bboxExt <- NULL
+#     }
+#     
+#   
+#     r <- getSMIPSRasterWindow(product=prod, dt=date, bboxExt=bboxExt, as.numeric(cols),  as.numeric(rows))
+#     
+#     res$setHeader("content-disposition", paste0("attachment; filename=SMIPS_", prod, "_", date,  ".tif"))
+#     res$setHeader("Content-Type", list(type="application/octet-stream"))
+#     
+#     tf <- tempfile(fileext = '.tif')
+# 
+#     writeRaster(r, tf, overwrite=T)
+#     bin <- readBin(paste0(tf), "raw", n=file.info(paste0(tf))$size)
+#     unlink(tf)
+#     
+#     res$body <- bin
+#     return(res)
+#     
+#   }, error = function(res)
+#   {
+#     print(geterrmessage())
+#     res$status <- 400
+#     #res$setHeader("Content-Type", list(type="application/json"))
+#     list(error=jsonlite::unbox(geterrmessage()))
+#   })
+#   
+# }
 
 
 cerealize <- function(DF, label, format, res){
