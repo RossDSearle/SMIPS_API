@@ -2,63 +2,44 @@ library(httr)
 library(jsonlite)
 
 
-startDate='2017-12-29'
-startDate='2019-01-01'
-startDate='2019-01-01'
-endDate='2019-01-30'
+
+startDate='27-01-2019'
+endDate='30-01-2019'
 longitude = 150
 latitude = -25
-product <- 'Openloop_Wetness_Index'
+product <- 'CSIRO - SMIPS - Blended Rainfall Estimate'
+product <- "CSIRO - SMIPS Simple Volumetric Soil Moisture (mm)"    
+product <- "CSIRO - SMIPS Fusion Soil Wetness Index (0-1 unitless)" 
+product <- "CSIRO - SMIPS Fusion Volumetric Soil Moisture (mm)"     
+product <- "ESA - SMOS - Soil Wetness Index (0-1 unitless)"        
+product <- "ANU - Soil Moisture Annual Products"                   
 
 ts <- getSMIPSTimeSeries(product, startDate, endDate, longitude, latitude)
+ts
 
-url <- paste0('http://esoil.io/thredds/dodsC/SMIPS/SMIPSv0.5.nc.ascii?',product,'%5B',startDayNum, ':', endDayNum ,'%5D%5B', rowNum,'%5D%5B', colNum, '%5D')
+
+url <- paste0('http://esoil.io/thredds/dodsC/SMIPS/SMIPSv0.5.nc.ascii?','Blended_Precipitation','%5B',startDayNum, ':', endDayNum ,'%5D%5B', rowNum,'%5D%5B', colNum, '%5D')
 req <- GET(url)
 stop_for_status(req)
 d1 <-  content(req)
-
-
-
-getSMIPSTimeSeries(product='Analysis_Wetness_Index', startDate='01-10-2018', endDate='25-11-2018', longitude=153.0219, latitude=-27.4374 )
-getSMIPSTimeSeries(product='Openloop_Wetness_Index', startDate='01-10-2010', endDate=NULL, longitude=153.0219, latitude=-27.4374 )
-
-
-url <- 'http://127.0.0.1:6214/SMIPS/TimeSeries?longitude=153.0219&latitude=-27.4374&sdate=13-06-2018&edate=14-06-2018'
-bob <- GET(url)
-stop_for_status(bob)
-ts <-  fromJSON( content(bob))
-ts
-
-endDate <- '25-11-2015'
-startDate <- '01-01-2010'
+d1
 
 
 
 
-
-sdt='10-06-2018'
-edt='16-06-2019'
-vals <- getSMIPSTimeSeries(product='Analysis_Wetness_Index', startDate=sdt, endDate=edt, longitude=longitude, latitude=latitude )
-vals
-
-#getSMIPSTimeSeries(product='Analysis_Wetness_Index', startDate='20-11-2015', endDate='20-11-2015', longitude=longitude, latitude=latitude )
+url <- paste0('http://esoil.io/thredds/wcs/SMIPSall/SMIPSv0.5.nc?SERVICE=WCS&VERSION=1.0.0&REQUEST=GetCoverage&FORMAT=GeoTIFF_Float&COVERAGE=Analysis_Wetness_Index&CRS=OGC:CRS84&TIME=2016-01-01T00:00:00Z')
+outFile <- 'c:/temp/t.tif'
+download.file(url, outFile, mode = 'wb', quiet = T)
 
 
+dt='2016-01-01'
 
+r <- getSMIPSRasterWCS(product, dt, bbox = '140,-26,142,-24')
 
-
-
-dt='15-06-2018'
 r <- getSMIPSRaster(dt='16-06-2019', resFactor = 50)
 r
 plot(r)
 writeRaster(r, paste0('c:/temp/', dt, '.tif'), overwrite=T)
-
-
-
-
-
-
 
 
 dt='20-11-2015'
@@ -70,20 +51,6 @@ r
 plot(r)
 writeRaster(r, paste0('c:/temp/smips/', dt, '_', 'Openloop_Wetness_Index.tif' ))
 plot(r)
-
-longitude=153.0219
-latitude=-27.4374
-endDate <- dt
-startDate <- dt
-
-getSMIPSTimeSeries(product='Openloop_Wetness_Index', startDate=dt, endDate=dt, longitude=153.0219, latitude=-27.4374 )
-getSMIPSTimeSeries(product='Openloop_Wetness_Index', startDate=dt, endDate=dt, longitude=141.0219, latitude=-20.4374 )
-
-
-
-
-
-getSMIPSTimeSeries(product='Openloop_Wetness_Index', startDate=dt, endDate=dt, longitude=153.0219, latitude=-27.4374 )
 
 
 r <- getSMIPSrasterCSIRO_OpenDAP(dt='20-11-2015')

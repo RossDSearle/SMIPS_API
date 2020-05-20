@@ -6,32 +6,9 @@ library(stringr)
 # Thredds Cataloue
 #http://esoil.io/thredds/catalog/SMIPSall/catalog.html?dataset=SMIPS/SMIPSv0.5.nc
 
-
-threddsPath <- 'http://esoil.io/thredds/dodsC/SMIPSall/SMIPSv0.5.nc'
-defaultProduct <- 'Openloop_Wetness_Index'
-
-supportedProducts <- c('Openloop_Wetness_Index', 'Analysis_Wetness_Index')
-
-originDay = 42326
-originDate <- '20-11-2015'
-Ausminx <- 112.905
-Ausminy <-  -43.735
-Ausmaxx <- 154.005
-Ausmaxy <- -9.005
-AusRes <- 0.01
-Ausnumrows <- 3474
-Ausnumcols <- 4110
+source('SMIPS_Config.R')
 
 
-
-
-# startDate='2017-12-29'
-# startDate='2019-01-01'
-# endDate='2019-01-30'
-# longitude = 150
-# latitude = -25
-# 
-# ts <- getTimeSeriesCSIRO(product, startDate, endDate, longitude, latitude)
 
 
 getcellsForALatLon <- function(lon, lat){
@@ -45,7 +22,6 @@ getcellsForALatLon <- function(lon, lat){
 
 getThreddsDay <- function(theDate){
   d <- as.numeric(as.Date(paste(theDate), "%d-%m-%Y") - as.Date(paste(originDate), "%d-%m-%Y"))
- # print(d)
   return(d)
 }
 
@@ -81,6 +57,15 @@ retrieveData <- function(url){
   return(t1)
 }
 
+getConfig <- function(){
+ return(config)
+}
+
+getProducts <- function(){
+  dfc <-  getConfig()
+  return(dfc$Name)
+}
+
 getSMIPSTimeSeries <- function(product, startDate, endDate, longitude, latitude){
   
   check_getSMIPSTimeSeries(product=product, startDate=startDate, endDate=endDate, longitude=longitude, latitude=latitude)
@@ -92,7 +77,6 @@ getSMIPSTimeSeries <- function(product, startDate, endDate, longitude, latitude)
   endDate <- getEndDate(endDate)
   startDate <- getStartDate(startDate, endDate)
   
-#  r <- getSMIPSAustTemplate()
   
   cell <- getGDALrowcolFromSMIPSTemplate(longitude,latitude)
   colNum <- cell$colNum
@@ -114,7 +98,9 @@ getSMIPSTimeSeries <- function(product, startDate, endDate, longitude, latitude)
     endDayNum = endDayNum-daylag
   }
   
-  url <- paste0(threddsPath, '.ascii?',product,'%5B',startDayNum, ':', endDayNum ,'%5D%5B', rowNum-1,'%5D%5B', colNum-1, '%5D')
+  threddsName <- config[config$Name == product, ]$ProductCode
+  
+  url <- paste0(threddsPath, '.ascii?',threddsName,'%5B',startDayNum, ':', endDayNum ,'%5D%5B', rowNum-1,'%5D%5B', colNum-1, '%5D')
   #url <- paste0('http://esoil.io/thredds/dodsC/SMIPS/SMIPSv0.5.nc.ascii?',product,'%5B',startDayNum,'%5D%5B', rowNum,'%5D%5B', colNum, '%5D')
 
   d1 <- retrieveData(url)
@@ -134,9 +120,35 @@ checkRasterInputs <- function(dt){
 
 checkRasterInputs2 <- function(dt){
   print(dt)
-  if(is.null(dt)) { stop("The date parameter is required here window")}
+  if(is.null(dt)) { stop("The date parameter is required here")}
 }
 
+
+getSMIPSRasterWCS <- function(product=NULL, dt=NULL, bbox=NULL, resFactor=2){
+  
+ # &RESX=0.00083333=&RESY=0.00083333&FORMAT=GeoTIFF&BBOX=140,-26,141,-25
+  
+  pX <- pixelXSize * resFactor
+  pY <- pixelYSize * resFactor
+  
+  threddsName <- config[config$Name == product, ]$ProductCode
+  print(threddsName)
+  url <- paste0('http://esoil.io/thredds/wcs/SMIPSall/SMIPSv0.5.nc?SERVICE=WCS&VERSION=1.0.0&REQUEST=GetCoverage&FORMAT=GeoTIFF_Float&COVERAGE=', 
+                threddsName, '&CRS=OGC:CRS84&TIME=', dt, 'T00:00:00Z'
+                #'&RESX=', pX, '&RESY=', pY,
+                )
+  
+  if(!is.null(bbox)){
+    url <- paste0(url, '&BBOX=', bbox )
+  }
+  outFile <- paste0(tempfile(), '.tif') 
+  print(url)
+  download.file(URLencode(url), outFile, mode = 'wb', quiet = T)
+  r <- raster(outFile)
+  plot(r)
+  return(outFile)
+  
+}
 
 getSMIPSRaster <- function(product=NULL, dt, resFactor=1){
   
@@ -176,7 +188,7 @@ getSMIPSRaster <- function(product=NULL, dt, resFactor=1){
   url <- paste0(threddsPath, '.ascii?',product, '%5B',dayNum ,'%5D%5B', ur$rowNum-1, ':', stridey, ':', ll$rowNum-1, '%5D%5B', ll$colNum-1, ':', stridey, ':', ur$colNum-1, '%5D')
  # url <- paste0('http://esoil.io/thredds/dodsC/SMIPSall/SMIPSv0.5.nc.ascii?',product, '%5B',dayNum ,'%5D%5B', ur$rowNum-1, ':',  ll$rowNum-1, '%5D%5B', ll$colNum-1, ':', ur$colNum-1, '%5D')
   
-   print(url)
+
    
    d1 <- retrieveData(url)
   
@@ -351,3 +363,5 @@ getStartDate <- function(startDate, endDate){
   
 }
 
+supportedProducts <- getProducts()
+defaultProduct <- supportedProducts[1]
