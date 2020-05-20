@@ -4,12 +4,7 @@ library(xml2)
 library(htmlTable)
 library(raster)
 
-machineName <- as.character(Sys.info()['nodename'])
-if(machineName=='soils-discovery'){
-  deployDir <-'/srv/plumber/SMIPS_API'
-}else{
-  deployDir <-'C:/Users/sea084/Dropbox/RossRCode/Git/SMIPS_API'
-}
+
 
 pixelXSize = 0.009999999108758974783
 pixelYSize = 0.01000000014279027981

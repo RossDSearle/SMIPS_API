@@ -53,7 +53,7 @@ writeLogEntry <- function(logfile, logentry){
 #* @param format (Optional) format of the response to return. Either json, csv, or xml. Default = json.
 #* @tag SMIPS
 #* @get /SMIPS/Config
-apiGetSMIPSProducts<- function( res, format='json'){
+apiGetConfig <- function( res, format='json'){
   
   tryCatch({
     label='Config'
@@ -108,10 +108,11 @@ apiGetSMIPSTimeseries<- function( res, sdate=NULL, edate=NULL, longitude=NULL, l
 
   tryCatch({
     
+   
     if(is.null(product)){
-        product = 'Analysis_Wetness_Index'
+        product = defaultProduct
     }
-
+    
     DF <- getSMIPSTimeSeries(product, sdate, edate, as.numeric(longitude), as.numeric(latitude))
     label <- 'SMIPS_TS'
 

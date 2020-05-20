@@ -6,7 +6,14 @@ library(stringr)
 # Thredds Cataloue
 #http://esoil.io/thredds/catalog/SMIPSall/catalog.html?dataset=SMIPS/SMIPSv0.5.nc
 
-source('SMIPS_Config.R')
+machineName <- as.character(Sys.info()['nodename'])
+if(machineName=='soils-discovery'){
+  deployDir <-'/srv/plumber/SMIPS_API'
+}else{
+  deployDir <-'C:/Users/sea084/Dropbox/RossRCode/Git/SMIPS_API'
+}
+setwd(deployDir)
+source('./SMIPS_Config.R')
 
 
 
@@ -46,11 +53,11 @@ getThreddsMaxDay <- function(){
   k <- regmatches(t1, gregexpr("\\[.+?\\]", t1))[[1]]
   k <- substring(k, 2, nchar(k)-1)
   maxDay <- as.numeric(str_trim(str_split(k, '=')[[1]][2]))
-  return(maxDay)
+  return(maxDay-1)
 }
 
 retrieveData <- function(url){
-  
+  #print(url)
   req <- GET(url)
   stop_for_status(req)
   t1 <- content(req, 'text', encoding = 'UTF-8')
@@ -68,15 +75,17 @@ getProducts <- function(){
 
 getSMIPSTimeSeries <- function(product, startDate, endDate, longitude, latitude){
   
-  check_getSMIPSTimeSeries(product=product, startDate=startDate, endDate=endDate, longitude=longitude, latitude=latitude)
+  endDate <- getEndDate(endDate)
+  startDate <- getStartDate(startDate, endDate)
   
   if(is.null(product)){
     product = defaultProduct
   }
   
-  endDate <- getEndDate(endDate)
-  startDate <- getStartDate(startDate, endDate)
+  check_getSMIPSTimeSeries(product=product, startDate=startDate, endDate=endDate, longitude=longitude, latitude=latitude)
   
+  print(endDate)
+  print(startDate)
   
   cell <- getGDALrowcolFromSMIPSTemplate(longitude,latitude)
   colNum <- cell$colNum
@@ -98,18 +107,21 @@ getSMIPSTimeSeries <- function(product, startDate, endDate, longitude, latitude)
     endDayNum = endDayNum-daylag
   }
   
-  threddsName <- config[config$Name == product, ]$ProductCode
   
+  threddsName <- config[config$Name == product, ]$ProductCode
+  print(paste0('Product = ', threddsName))
   url <- paste0(threddsPath, '.ascii?',threddsName,'%5B',startDayNum, ':', endDayNum ,'%5D%5B', rowNum-1,'%5D%5B', colNum-1, '%5D')
+  print(url)
   #url <- paste0('http://esoil.io/thredds/dodsC/SMIPS/SMIPSv0.5.nc.ascii?',product,'%5B',startDayNum,'%5D%5B', rowNum,'%5D%5B', colNum, '%5D')
-
   d1 <- retrieveData(url)
   ndays <- (endDayNum-startDayNum) + 1
   dts <- seq.Date(from=as.Date(paste(startDate), "%d-%m-%Y"), to=as.Date(paste(endDate), "%d-%m-%Y")-daylag, by='days')
   pdts <- paste0(dts, 'T00:00:00')
+  
   ts1 <- read.table(text=d1, skip=12, nrows = ndays , sep = ',')
   ts2 <- ts1[,-1]
   tsdf <- data.frame(t=pdts, v=ts2, stringsAsFactors = F)
+  print(tsdf)
   return(tsdf)
 }
 
@@ -348,6 +360,7 @@ getEndDate <- function(endDate){
       isoEDate <- endDate
     }
   }
+ 
   return(isoEDate)
 }
 

@@ -1,6 +1,6 @@
 library(plumber)
 
-devel <- T
+devel <- F
 
 machineName <- as.character(Sys.info()['nodename'])
 if(machineName=='soils-discovery'){
