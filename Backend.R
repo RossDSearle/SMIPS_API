@@ -144,17 +144,16 @@ getSMIPSRasterWCS <- function(product=NULL, dt=NULL, bbox=NULL, resFactor=2){
 #  pY <- pixelYSize * resFactor
   
   ddt <- str_split(dt, '-')
-  d <- ddt[[1]][3]
+  y <- ddt[[1]][3]
   m <- ddt[[1]][2]
-  y <- ddt[[1]][1]
-  ddt2 <- paste0(d, '-', m, '-', y)
+  d <- ddt[[1]][1]
+  ddt2 <- paste0(y, '-', m, '-', d)
   
   threddsName <- config[config$Name == product, ]$ProductCode
   print(threddsName)
-  url <- paste0('http://esoil.io/thredds/wcs/SMIPSall/SMIPSv0.5.nc?SERVICE=WCS&VERSION=1.0.0&REQUEST=GetCoverage&FORMAT=GeoTIFF_Float&COVERAGE=', 
-                threddsName, '&CRS=OGC:CRS84&TIME=', ddt2, 'T00:00:00Z'
+  url <- paste0('http://esoil.io/thredds/wcs/SMIPSall/SMIPSv0.5.nc?SERVICE=WCS&VERSION=1.0.0&REQUEST=GetCoverage&FORMAT=GeoTIFF_Float&COVERAGE=',threddsName, '&CRS=OGC:CRS84&TIME=', ddt2, 'T00:00:00Z')
                 #'&RESX=', pX, '&RESY=', pY,
-                )
+                
  
  
   if(!is.null(bbox)){

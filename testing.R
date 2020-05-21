@@ -27,10 +27,11 @@ d1
 
 
 
-url <- paste0('http://esoil.io/thredds/wcs/SMIPSall/SMIPSv0.5.nc?SERVICE=WCS&VERSION=1.0.0&REQUEST=GetCoverage&FORMAT=GeoTIFF_Float&COVERAGE=Analysis_Wetness_Index&CRS=OGC:CRS84&TIME=2016-01-01T00:00:00Z')
-outFile <- 'c:/temp/t.tif'
+url <- paste0('https://esoil.io/thredds/wcs/SMIPSall/SMIPSv0.5.nc?SERVICE=WCS&VERSION=1.0.0&REQUEST=GetCoverage&FORMAT=GeoTIFF_Float&COVERAGE=Analysis_Wetness_Index&CRS=OGC:CRS84&TIME=2016-01-01T00:00:00Z')
+outFile <- '/home/sea084/t.tif'
 download.file(url, outFile, mode = 'wb', quiet = T)
-
+r <- raster(outFile)
+r
 
 dt='01-01-2016'
 
