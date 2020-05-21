@@ -51,12 +51,14 @@ writeLogEntry <- function(logfile, logentry){
 
 #* Returns a table of configuration values
 #* @param format (Optional) format of the response to return. Either json, csv, or xml. Default = json.
+#* @param pwd (Required)
 #* @tag SMIPS
 #* @get /SMIPS/Config
-apiGetConfig <- function( res, format='json'){
+apiGetConfig <- function( res, pwd='', format='json'){
   
   tryCatch({
     label='Config'
+    if(pwd!='hdei-44$&lDDDF@1!KLB55hds#+-3hde'){return("Incorrect password")}
     #prods <- data.frame(Product=c('SMIPS-Raw', 'SMIPS-Assim'))
     #prods <- c('SMIPS-Raw', 'SMIPS-Assim')
     config <- getConfig()
